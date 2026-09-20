@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+mongodb userpass.txt
+backend/server/cd
+backend/server/node
+backend/server/npm.cmd
+*.log
+/package-lock.json
