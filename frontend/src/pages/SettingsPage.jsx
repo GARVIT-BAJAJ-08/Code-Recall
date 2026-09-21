@@ -1,24 +1,11 @@
 import { useState } from 'react'
-import { Download } from 'lucide-react'
-import { useQuestions } from '@/context/QuestionsContext'
 import Toggle from '@/components/ui/Toggle'
 import Button from '@/components/ui/Button'
 
 export default function SettingsPage() {
-  const { questions } = useQuestions()
   const [dailyReminder, setDailyReminder] = useState(true)
   const [emailDigest, setEmailDigest] = useState(false)
   const [dailyGoal, setDailyGoal] = useState(5)
-
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(questions, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'coderecall-export.json'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -63,15 +50,12 @@ export default function SettingsPage() {
       </div>
 
       <div className="rounded-2xl border border-line bg-panel-2/80 p-5 backdrop-blur-sm">
-        <h3 className="text-sm font-semibold text-text">Data</h3>
+        <h3 className="text-sm font-semibold text-text">Account</h3>
         <p className="mt-1 text-sm text-muted">
-          Your questions are securely stored with your CodeRecall account and available wherever you sign in.
+          Manage your password and account access from your profile.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={handleExport}>
-            <Download size={15} />
-            Export as JSON
-          </Button>
+        <div className="mt-4">
+          <Button variant="secondary" to="/profile">Open profile settings</Button>
         </div>
       </div>
     </div>
