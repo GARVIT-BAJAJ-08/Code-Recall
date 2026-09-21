@@ -77,7 +77,7 @@ export default function SignupPage() {
             value={form.name}
             onChange={update('name')}
             error={errors.name}
-            placeholder="Garvit Bajaj"
+            placeholder="User Name"
           />
           <AuthField
             label="Email"
