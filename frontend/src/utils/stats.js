@@ -77,6 +77,49 @@ export function getDueCount(questions) {
   return questions.filter((q) => isDueOrOverdue(q.nextRevision)).length
 }
 
+export function getCurrentStreak(questions) {
+  const dayKeys = new Set(
+    questions
+      .flatMap((q) => (q.history || []).map((h) => h.date).filter(Boolean))
+      .map((date) => {
+        const d = new Date(date)
+        if (Number.isNaN(d.getTime())) return null
+        d.setHours(0, 0, 0, 0)
+        return d.toISOString().slice(0, 10)
+      })
+      .filter(Boolean)
+  )
+
+  if (dayKeys.size === 0) return 0
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  let streak = 0
+  let cursor = new Date(today)
+
+  while (dayKeys.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  if (streak > 0) return streak
+
+  const latestDate = [...dayKeys]
+    .map((key) => new Date(`${key}T00:00:00`))
+    .sort((a, b) => b - a)[0]
+
+  if (!latestDate) return 0
+
+  cursor = new Date(latestDate)
+  while (dayKeys.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  return streak
+}
+
 export function getUpcoming(questions, limit = 5) {
   return questions
     .filter((q) => !isDueOrOverdue(q.nextRevision))

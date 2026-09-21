@@ -8,6 +8,7 @@ import {
   getDifficultyBreakdown,
   getTopicStats,
   getRevisionActivity,
+  getCurrentStreak,
 } from '@/utils/stats'
 
 const RANGE_OPTIONS = [7, 14, 30]
@@ -27,6 +28,7 @@ export default function Progress() {
   const activity = useMemo(() => getRevisionActivity(questions, range), [questions, range])
 
   const totalReviews = questions.reduce((sum, q) => sum + q.reviewCount, 0)
+  const streak = getCurrentStreak(questions)
   const easyOutcomes = questions.reduce(
     (sum, q) => sum + (q.history || []).filter((h) => h.outcome === 'easy').length,
     0
@@ -50,7 +52,7 @@ export default function Progress() {
         <StatCard icon={ListChecks} value={totalReviews} label="Total revisions" />
         <StatCard icon={CheckCircle2} value={`${successRate}%`} label="Solved easily rate" tone="easy" />
         <StatCard icon={TrendingUp} value={`${avgMastery}%`} label="Average mastery" />
-        <StatCard icon={Flame} value="7" label="Day streak" />
+        <StatCard icon={Flame} value={streak} label="Day streak" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

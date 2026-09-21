@@ -18,6 +18,7 @@ import {
 import Logo from '@/components/ui/Logo'
 import { useQuestions } from '@/context/QuestionsContext'
 import { useAuth } from '@/context/AuthContext'
+import { getCurrentStreak } from '@/utils/stats'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -69,7 +70,7 @@ export default function Sidebar({ open, onClose }) {
   const { questions } = useQuestions()
   const { logout } = useAuth()
   const navigate = useNavigate()
-  const streak = 7 // demo: would come from user profile / backend
+  const streak = getCurrentStreak(questions)
 
   return (
     <>

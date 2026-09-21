@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Mail, Calendar, Flame, Trophy, ListChecks, LockKeyhole, Trash2 } from 'lucide-react'
 import { useQuestions } from '@/context/QuestionsContext'
 import StatCard from '@/components/ui/StatCard'
-import { getTopicStats } from '@/utils/stats'
+import { getCurrentStreak, getTopicStats } from '@/utils/stats'
 import { useAuth } from '@/context/AuthContext'
 import Button from '@/components/ui/Button'
 
@@ -19,6 +19,7 @@ export default function ProfilePage() {
   const topicStats = getTopicStats(questions)
   const strongestTopic = [...topicStats].sort((a, b) => b.mastery - a.mastery)[0]
   const revisedCount = questions.filter((q) => q.reviewCount > 0).length
+  const streak = getCurrentStreak(questions)
 
   const updatePassword = (field) => (event) => setPasswords((current) => ({ ...current, [field]: event.target.value }))
 
@@ -85,7 +86,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
         <StatCard icon={ListChecks} value={questions.length} label="Saved problems" />
         <StatCard icon={Trophy} value={revisedCount} label="Problems revised" tone="easy" />
-        <StatCard icon={Flame} value="7" label="Day streak" />
+        <StatCard icon={Flame} value={streak} label="Day streak" />
         <StatCard icon={Trophy} value={strongestTopic ? strongestTopic.topic : '—'} label="Strongest topic" tone="muted" />
       </div>
 

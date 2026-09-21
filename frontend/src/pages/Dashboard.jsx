@@ -18,6 +18,7 @@ import {
   getRevisionActivity,
   getUpcoming,
   getRecentActivity,
+  getCurrentStreak,
 } from '@/utils/stats'
 
 export default function Dashboard() {
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const activity = getRevisionActivity(questions)
   const upcoming = getUpcoming(questions)
   const recent = getRecentActivity(questions)
+  const streak = getCurrentStreak(questions)
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
@@ -45,7 +47,7 @@ export default function Dashboard() {
         <StatCard icon={ListChecks} value={questions.length} label="Total problems" />
         <StatCard icon={CheckCircle2} value={revisedCount} label="Problems revised" tone="easy" />
         <StatCard icon={Clock} value={dueToday.length} label="Due today" tone="hard" />
-        <StatCard icon={Flame} value="7" label="Day streak" />
+        <StatCard icon={Flame} value={streak} label="Day streak" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
