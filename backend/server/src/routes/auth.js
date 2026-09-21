@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
 import { User } from '../models/User.js'
 import { SignupVerification } from '../models/SignupVerification.js'
+import { PasswordReset } from '../models/PasswordReset.js'
+import { Question } from '../models/Question.js'
 import { requireAuth } from '../middleware/requireAuth.js'
 import { validateGoogleIdentity } from '../utils/googleAuth.js'
 
@@ -95,6 +97,93 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid email or password.' })
     }
     return res.json({ user: publicUser(user), token: createToken(user) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/password-reset/request-otp', async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase()
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Enter a valid email address.' })
+    const mailer = createMailer()
+    if (!mailer) return res.status(503).json({ message: 'Email verification is not configured on the server yet.' })
+    const user = await User.findOne({ email })
+    if (!user) return res.status(404).json({ message: 'No account was found with this email.' })
+
+    const otp = String(crypto.randomInt(100000, 1000000))
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
+    await PasswordReset.findOneAndUpdate(
+      { email },
+      { email, otpHash, attempts: 0, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+      { upsert: true, setDefaultsOnInsert: true }
+    )
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: 'Your CodeRecall password reset code',
+      text: `Your CodeRecall password reset code is ${otp}. It expires in 10 minutes.`,
+    })
+    return res.json({ message: 'A password reset code was sent to your email.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/password-reset/verify-otp', async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase()
+    const otp = req.body.otp?.trim()
+    const newPassword = req.body.newPassword
+    if (!email || !/^\d{6}$/.test(otp || '') || !newPassword) return res.status(400).json({ message: 'Email, 6-digit code, and new password are required.' })
+    if (newPassword.length < 6) return res.status(400).json({ message: 'New password must be at least 6 characters.' })
+
+    const reset = await PasswordReset.findOne({ email }).select('+otpHash')
+    if (!reset) return res.status(400).json({ message: 'This reset code has expired. Request a new one.' })
+    if (reset.attempts >= 5) return res.status(429).json({ message: 'Too many incorrect attempts. Request a new code.' })
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
+    if (otpHash !== reset.otpHash) {
+      reset.attempts += 1
+      await reset.save()
+      return res.status(400).json({ message: 'That reset code is incorrect.' })
+    }
+
+    const user = await User.findOne({ email }).select('+passwordHash')
+    if (!user) return res.status(404).json({ message: 'No account was found with this email.' })
+    user.passwordHash = await bcrypt.hash(newPassword, 12)
+    await user.save()
+    await PasswordReset.deleteOne({ _id: reset._id })
+    return res.json({ message: 'Password reset successfully. You can now log in.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.patch('/password', requireAuth, async (req, res, next) => {
+  try {
+    const currentPassword = req.body.currentPassword
+    const newPassword = req.body.newPassword
+    if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Current and new passwords are required.' })
+    if (newPassword.length < 6) return res.status(400).json({ message: 'New password must be at least 6 characters.' })
+
+    const user = await User.findById(req.user.id).select('+passwordHash')
+    if (!user?.passwordHash) return res.status(400).json({ message: 'This account does not have a password. Sign in with Google instead.' })
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) return res.status(401).json({ message: 'Current password is incorrect.' })
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12)
+    await user.save()
+    return res.json({ message: 'Password changed successfully.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.delete('/account', requireAuth, async (req, res, next) => {
+  try {
+    await Question.deleteMany({ user: req.user.id })
+    await SignupVerification.deleteMany({ email: req.user.email })
+    await User.deleteOne({ _id: req.user.id })
+    return res.status(204).end()
   } catch (error) {
     next(error)
   }

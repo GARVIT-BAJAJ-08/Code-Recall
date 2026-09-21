@@ -5,6 +5,7 @@ import AuthField from '@/components/forms/AuthField'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/context/AuthContext'
 import GoogleSignIn from '@/components/auth/GoogleSignIn'
+import { requestPasswordResetOtp, resetPassword } from '@/api/auth'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -14,8 +15,12 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  const [resetForm, setResetForm] = useState({ otp: '', newPassword: '', confirmPassword: '' })
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+  const updateReset = (field) => (e) => setResetForm((f) => ({ ...f, [field]: e.target.value }))
 
   const validate = () => {
     const next = {}
@@ -29,11 +34,34 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
-    if (!validate()) return
+    if (!forgotPassword && !validate()) return
+    if (forgotPassword && !form.email.trim()) {
+      setFormError('Enter your email address.')
+      return
+    }
+    if (forgotPassword && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      setFormError('Enter a valid email address.')
+      return
+    }
+    if (forgotPassword && resetSent && resetForm.newPassword !== resetForm.confirmPassword) {
+      setFormError('New passwords do not match.')
+      return
+    }
     setSubmitting(true)
     try {
-      await login({ email: form.email.trim(), password: form.password })
-      navigate(location.state?.from ?? '/dashboard', { replace: true })
+      if (!forgotPassword) {
+        await login({ email: form.email.trim(), password: form.password })
+        navigate(location.state?.from ?? '/dashboard', { replace: true })
+      } else if (!resetSent) {
+        await requestPasswordResetOtp(form.email.trim())
+        setResetSent(true)
+      } else {
+        const response = await resetPassword({ email: form.email.trim(), otp: resetForm.otp.trim(), newPassword: resetForm.newPassword })
+        setFormError(response.message)
+        setForgotPassword(false)
+        setResetSent(false)
+        setResetForm({ otp: '', newPassword: '', confirmPassword: '' })
+      }
     } catch (err) {
       setFormError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -67,21 +95,42 @@ export default function LoginPage() {
             error={errors.email}
             placeholder="you@example.com"
           />
-          <AuthField
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            value={form.password}
-            onChange={update('password')}
-            error={errors.password}
-            placeholder="••••••••"
-          />
+          {!forgotPassword ? (
+            <>
+              <AuthField
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={update('password')}
+                error={errors.password}
+                placeholder="••••••••"
+              />
+              <button type="button" className="text-xs font-medium text-ember-400 hover:text-ember-300" onClick={() => { setForgotPassword(true); setFormError(''); setErrors({}) }}>
+                Forgot password?
+              </button>
+            </>
+          ) : (
+            <>
+              {resetSent && <AuthField label="Verification code" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={resetForm.otp} onChange={updateReset('otp')} placeholder="6-digit code" />}
+              {resetSent && <AuthField label="New password" type="password" autoComplete="new-password" value={resetForm.newPassword} onChange={updateReset('newPassword')} placeholder="At least 6 characters" />}
+              {resetSent && <AuthField label="Confirm new password" type="password" autoComplete="new-password" value={resetForm.confirmPassword} onChange={updateReset('confirmPassword')} placeholder="Re-enter your password" />}
+            </>
+          )}
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Logging in...' : 'Login'}
+            {submitting ? (forgotPassword ? (resetSent ? 'Resetting...' : 'Sending code...') : 'Logging in...') : forgotPassword ? (resetSent ? 'Reset password' : 'Send reset code') : 'Login'}
           </Button>
         </form>
-        <div className="my-5 flex items-center gap-3 text-xs text-faint"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
-        <GoogleSignIn onSuccess={() => navigate(location.state?.from ?? '/dashboard', { replace: true })} onError={setFormError} />
+        {forgotPassword ? (
+          <button type="button" className="mt-4 w-full text-center text-sm text-muted hover:text-text" onClick={() => { setForgotPassword(false); setResetSent(false); setFormError('') }}>
+            Back to login
+          </button>
+        ) : (
+          <>
+            <div className="my-5 flex items-center gap-3 text-xs text-faint"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
+            <GoogleSignIn onSuccess={() => navigate(location.state?.from ?? '/dashboard', { replace: true })} onError={setFormError} />
+          </>
+        )}
       </div>
 
       <p className="mt-5 text-center text-sm text-muted">

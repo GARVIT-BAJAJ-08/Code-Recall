@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { fetchCurrentUser, googleLogin as googleLoginApi, login as loginApi, requestSignupOtp as requestSignupOtpApi, verifySignupOtp as verifySignupOtpApi } from '@/api/auth'
+import { changePassword as changePasswordApi, deleteAccount as deleteAccountApi, fetchCurrentUser, googleLogin as googleLoginApi, login as loginApi, requestSignupOtp as requestSignupOtpApi, verifySignupOtp as verifySignupOtpApi } from '@/api/auth'
 
 const AuthContext = createContext(null)
 const STORAGE_KEY = 'coderecall.auth'
@@ -59,6 +59,15 @@ export function AuthProvider({ children }) {
     return signedInUser
   }, [])
 
+  const changePassword = useCallback((data) => changePasswordApi(data), [])
+
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountApi()
+    localStorage.removeItem(STORAGE_KEY)
+    setUser(null)
+    setToken(null)
+  }, [])
+
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setUser(null)
@@ -74,6 +83,8 @@ export function AuthProvider({ children }) {
     requestSignupOtp: requestSignupOtpApi,
     verifySignupOtp,
     googleLogin,
+    changePassword,
+    deleteAccount,
     logout,
   }
 
