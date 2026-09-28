@@ -78,17 +78,21 @@ export function getDueCount(questions) {
 }
 
 export function getCurrentStreak(questions) {
-  const dayKeys = new Set(
-    questions
-      .flatMap((q) => (q.history || []).map((h) => h.date).filter(Boolean))
-      .map((date) => {
-        const d = new Date(date)
-        if (Number.isNaN(d.getTime())) return null
-        d.setHours(0, 0, 0, 0)
-        return d.toISOString().slice(0, 10)
-      })
-      .filter(Boolean)
-  )
+  const toDayKey = (date) => {
+    const day = new Date(date)
+    if (Number.isNaN(day.getTime())) return null
+    return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+  }
+  const dayKeys = new Set()
+
+  questions.forEach((question) => {
+    const activityDates = [question.createdAt, ...(question.history || []).map((item) => item.date)]
+    activityDates.forEach((date) => {
+      if (!date) return
+      const key = toDayKey(date)
+      if (key) dayKeys.add(key)
+    })
+  })
 
   if (dayKeys.size === 0) return 0
 
@@ -98,21 +102,10 @@ export function getCurrentStreak(questions) {
   let streak = 0
   let cursor = new Date(today)
 
-  while (dayKeys.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1
-    cursor.setDate(cursor.getDate() - 1)
-  }
+  if (!dayKeys.has(toDayKey(cursor))) cursor.setDate(cursor.getDate() - 1)
+  if (!dayKeys.has(toDayKey(cursor))) return 0
 
-  if (streak > 0) return streak
-
-  const latestDate = [...dayKeys]
-    .map((key) => new Date(`${key}T00:00:00`))
-    .sort((a, b) => b - a)[0]
-
-  if (!latestDate) return 0
-
-  cursor = new Date(latestDate)
-  while (dayKeys.has(cursor.toISOString().slice(0, 10))) {
+  while (dayKeys.has(toDayKey(cursor))) {
     streak += 1
     cursor.setDate(cursor.getDate() - 1)
   }
